@@ -1,10 +1,13 @@
 package com.medbill.service.impl;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.medbill.entity.Patient;
+import com.medbill.entity.PatientStatus;
 import com.medbill.repository.PatientRepository;
 import com.medbill.service.PatientService;
 
@@ -17,29 +20,64 @@ public class PatientServiceImpl implements PatientService {
         this.patientRepository = patientRepository;
     }
 
+    // =========================================================
+    // SAVE PATIENT
+    // =========================================================
+
     @Override
-    public Patient createPatient(Patient patient) {
+    public Patient savePatient(Patient patient) {
+
+        if (patient.getId() == null) {
+            patient.setCreatedDate(LocalDateTime.now());
+        }
+
+        patient.setStatus(PatientStatus.APPROVED);
+
         return patientRepository.save(patient);
     }
 
+    // =========================================================
+    // GET ALL APPROVED PATIENTS
+    // =========================================================
+
     @Override
     public List<Patient> getAllPatients() {
-        return patientRepository.findAll();
+
+        return patientRepository.findByStatus(
+                PatientStatus.APPROVED
+        );
     }
+
+    // =========================================================
+    // GET PATIENT BY ID
+    // =========================================================
 
     @Override
     public Patient getPatientById(Long id) {
+
         return patientRepository.findById(id)
                 .orElseThrow(() ->
-                    new RuntimeException("Patient not found with id: " + id));
+                        new RuntimeException(
+                                "Patient not found with ID: " + id
+                        )
+                );
     }
+
+    // =========================================================
+    // UPDATE PATIENT
+    // =========================================================
 
     @Override
     public Patient updatePatient(Long id, Patient patient) {
 
         Patient existingPatient = patientRepository.findById(id)
                 .orElseThrow(() ->
-                    new RuntimeException("Patient not found with id: " + id));
+                        new RuntimeException(
+                                "Patient not found with ID: " + id
+                        )
+                );
+
+        // ================= PERSONAL DETAILS =================
 
         existingPatient.setName(patient.getName());
         existingPatient.setMobile(patient.getMobile());
@@ -54,6 +92,8 @@ public class PatientServiceImpl implements PatientService {
         existingPatient.setEmergencyContact(patient.getEmergencyContact());
         existingPatient.setEmergencyName(patient.getEmergencyName());
 
+        // ================= ADDRESS DETAILS =================
+
         existingPatient.setAddress1(patient.getAddress1());
         existingPatient.setAddress2(patient.getAddress2());
         existingPatient.setDistrict(patient.getDistrict());
@@ -62,38 +102,118 @@ public class PatientServiceImpl implements PatientService {
         existingPatient.setCountry(patient.getCountry());
         existingPatient.setPincode(patient.getPincode());
 
+        // ================= MEDICAL DETAILS =================
+
         existingPatient.setMedicalHistory(patient.getMedicalHistory());
         existingPatient.setCurrentMedication(patient.getCurrentMedication());
         existingPatient.setAllergies(patient.getAllergies());
 
-        existingPatient.setInsuranceProvider(patient.getInsuranceProvider());
-        existingPatient.setPolicyNumber(patient.getPolicyNumber());
-        existingPatient.setPolicyHolderName(patient.getPolicyHolderName());
+        // ================= INSURANCE DETAILS =================
+
+        existingPatient.setInsuranceProvider(
+                patient.getInsuranceProvider()
+        );
+
+        existingPatient.setPolicyNumber(
+                patient.getPolicyNumber()
+        );
+
+        existingPatient.setPolicyHolderName(
+                patient.getPolicyHolderName()
+        );
+
+        // ================= STATUS =================
+
+        existingPatient.setStatus(PatientStatus.APPROVED);
 
         return patientRepository.save(existingPatient);
     }
+
+    // =========================================================
+    // DELETE PATIENT
+    // =========================================================
+
     @Override
     public void deletePatient(Long id) {
 
+        if (!patientRepository.existsById(id)) {
+            throw new RuntimeException(
+                    "Patient not found with ID: " + id
+            );
+        }
+
+        patientRepository.deleteById(id);
+    }
+
+    // =========================================================
+    // SAVE DRAFT
+    // =========================================================
+
+    @Override
+    public Patient saveDraft(Patient patient) {
+
+        if (patient.getId() == null) {
+            patient.setCreatedDate(LocalDateTime.now());
+        }
+
+        patient.setStatus(PatientStatus.DRAFT);
+
+        return patientRepository.save(patient);
+    }
+
+    // =========================================================
+    // GET ALL DRAFT PATIENTS
+    // =========================================================
+
+    @Override
+    public List<Patient> getDraftPatients() {
+
+        return patientRepository
+                .findByStatusOrderByCreatedDateDesc(
+                        PatientStatus.DRAFT
+                );
+    }
+
+    // =========================================================
+    // APPROVE DRAFT
+    // =========================================================
+
+    @Override
+    @Transactional
+    public Patient approvePatient(Long id) {
+
         Patient patient = patientRepository.findById(id)
                 .orElseThrow(() ->
-                    new RuntimeException("Patient not found with id: " + id));
+                        new RuntimeException(
+                                "Patient not found with ID: " + id
+                        )
+                );
 
-        patientRepository.delete(patient);
+        patient.setStatus(PatientStatus.APPROVED);
+
+        return patientRepository.save(patient);
     }
 
-    // ================= SEARCH PATIENT BY NAME =================
+    // =========================================================
+    // DELETE DRAFT
+    // =========================================================
 
     @Override
-    public List<Patient> searchPatientsByName(String name) {
-        return patientRepository.findByNameContainingIgnoreCase(name);
-    }
+    public void deleteDraft(Long id) {
 
-    // ================= SEARCH PATIENT BY MOBILE =================
+        Patient patient = patientRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Patient not found with ID: " + id
+                        )
+                );
 
-    @Override
-    public List<Patient> searchPatientsByMobile(String mobile) {
-        return patientRepository.findByMobileContaining(mobile);
-    }
+        if (patient.getStatus() != PatientStatus.DRAFT) {
+            throw new RuntimeException(
+                    "Only draft patients can be removed"
+            );
+        }
 
+        patientRepository.deleteById(id);
     }
+}

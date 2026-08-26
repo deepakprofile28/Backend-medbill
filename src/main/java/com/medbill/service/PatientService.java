@@ -6,7 +6,9 @@ import com.medbill.entity.Patient;
 
 public interface PatientService {
 
-    Patient createPatient(Patient patient);
+    // ================= PATIENT =================
+
+    Patient savePatient(Patient patient);
 
     List<Patient> getAllPatients();
 
@@ -16,7 +18,13 @@ public interface PatientService {
 
     void deletePatient(Long id);
 
-    List<Patient> searchPatientsByName(String name);
+    // ================= DRAFT =================
 
-    List<Patient> searchPatientsByMobile(String mobile);
+    Patient saveDraft(Patient patient);
+
+    List<Patient> getDraftPatients();
+
+    Patient approvePatient(Long id);
+
+    void deleteDraft(Long id);
 }

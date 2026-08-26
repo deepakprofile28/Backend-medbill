@@ -1,10 +1,16 @@
 package com.medbill.entity;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
@@ -18,26 +24,43 @@ public class Patient {
     // ================= PERSONAL DETAILS =================
 
     private String name;
+
     private String mobile;
+
     private String email;
-    private String dob;
+
+    private LocalDate dob;
+
     private String gender;
+
     private String bloodGroup;
+
     private String maritalStatus;
+
     private String occupation;
+
     private String aadhaar;
+
     private String pan;
+
     private String emergencyContact;
+
     private String emergencyName;
 
     // ================= ADDRESS DETAILS =================
 
     private String address1;
+
     private String address2;
+
     private String district;
+
     private String city;
+
     private String state;
+
     private String country;
+
     private String pincode;
 
     // ================= MEDICAL DETAILS =================
@@ -54,8 +77,31 @@ public class Patient {
     // ================= INSURANCE DETAILS =================
 
     private String insuranceProvider;
+
     private String policyNumber;
+
     private String policyHolderName;
+
+    // ================= STATUS =================
+
+    @Enumerated(EnumType.STRING)
+    private PatientStatus status;
+
+    private LocalDateTime createdDate;
+
+    // ================= DEFAULT STATUS & DATE =================
+
+    @PrePersist
+    protected void onCreate() {
+
+        if (status == null) {
+            status = PatientStatus.DRAFT;
+        }
+
+        if (createdDate == null) {
+            createdDate = LocalDateTime.now();
+        }
+    }
 
     // ================= GETTERS & SETTERS =================
 
@@ -91,13 +137,17 @@ public class Patient {
         this.email = email;
     }
 
-    public String getDob() {
+    // ================= DOB =================
+
+    public LocalDate getDob() {
         return dob;
     }
 
-    public void setDob(String dob) {
+    public void setDob(LocalDate dob) {
         this.dob = dob;
     }
+
+    // ================= OTHER PERSONAL DETAILS =================
 
     public String getGender() {
         return gender;
@@ -163,6 +213,8 @@ public class Patient {
         this.emergencyName = emergencyName;
     }
 
+    // ================= ADDRESS DETAILS =================
+
     public String getAddress1() {
         return address1;
     }
@@ -219,6 +271,8 @@ public class Patient {
         this.pincode = pincode;
     }
 
+    // ================= MEDICAL DETAILS =================
+
     public String getMedicalHistory() {
         return medicalHistory;
     }
@@ -243,6 +297,8 @@ public class Patient {
         this.allergies = allergies;
     }
 
+    // ================= INSURANCE DETAILS =================
+
     public String getInsuranceProvider() {
         return insuranceProvider;
     }
@@ -265,5 +321,25 @@ public class Patient {
 
     public void setPolicyHolderName(String policyHolderName) {
         this.policyHolderName = policyHolderName;
+    }
+
+    // ================= STATUS =================
+
+    public PatientStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(PatientStatus status) {
+        this.status = status;
+    }
+
+    // ================= CREATED DATE =================
+
+    public LocalDateTime getCreatedDate() {
+        return createdDate;
+    }
+
+    public void setCreatedDate(LocalDateTime createdDate) {
+        this.createdDate = createdDate;
     }
 }
