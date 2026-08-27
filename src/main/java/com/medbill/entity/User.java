@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-// Entity --> Database table-ஐ Java class-ஆ map பண்ணும்
 @Entity
 @Table(name = "users")
 @Getter
@@ -36,7 +35,13 @@ public class User {
 
     private Boolean active;
 
-    // Getters
+    // ================= COMPANY =================
+
+    @ManyToOne
+    @JoinColumn(name = "company_id")
+    private Company company;
+
+    // ================= GETTERS =================
 
     public Long getId() {
         return id;
@@ -62,7 +67,11 @@ public class User {
         return active;
     }
 
-    // Setters
+    public Company getCompany() {
+        return company;
+    }
+
+    // ================= SETTERS =================
 
     public void setId(Long id) {
         this.id = id;
@@ -86,5 +95,9 @@ public class User {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
     }
 }
