@@ -51,7 +51,8 @@ public class PatientServiceImpl implements PatientService {
 
         String email = authentication.getName();
 
-        return userRepository.findByEmail(email)
+        return userRepository
+                .findByEmail(email)
                 .orElseThrow(() ->
                         new RuntimeException(
                                 "Logged-in user not found"
@@ -60,7 +61,7 @@ public class PatientServiceImpl implements PatientService {
     }
 
     // =========================================================
-    // GET LOGGED-IN COMPANY
+    // GET LOGGED-IN COMPANY / TENANT
     // =========================================================
 
     private Company getLoggedInCompany() {
@@ -71,6 +72,13 @@ public class PatientServiceImpl implements PatientService {
 
             throw new RuntimeException(
                     "User is not assigned to any company"
+            );
+        }
+
+        if (user.getCompany().getId() == null) {
+
+            throw new RuntimeException(
+                    "Invalid company assigned to user"
             );
         }
 
@@ -86,7 +94,9 @@ public class PatientServiceImpl implements PatientService {
 
         Company company = getLoggedInCompany();
 
-        // Automatically assign logged-in user's company
+        // IMPORTANT:
+        // Always assign logged-in user's company.
+        // Never trust company received from frontend.
         patient.setCompany(company);
 
         if (patient.getId() == null) {
@@ -96,7 +106,9 @@ public class PatientServiceImpl implements PatientService {
             );
         }
 
-        patient.setStatus(PatientStatus.APPROVED);
+        patient.setStatus(
+                PatientStatus.APPROVED
+        );
 
         return patientRepository.save(patient);
     }
@@ -145,6 +157,8 @@ public class PatientServiceImpl implements PatientService {
 
         Company company = getLoggedInCompany();
 
+        // IMPORTANT:
+        // Patient must belong to logged-in company.
         Patient existingPatient =
                 patientRepository
                         .findByIdAndCompany(id, company)
@@ -154,7 +168,9 @@ public class PatientServiceImpl implements PatientService {
                                 )
                         );
 
-        // ================= PERSONAL DETAILS =================
+        // =====================================================
+        // PERSONAL DETAILS
+        // =====================================================
 
         existingPatient.setName(
                 patient.getName()
@@ -204,7 +220,9 @@ public class PatientServiceImpl implements PatientService {
                 patient.getEmergencyName()
         );
 
-        // ================= ADDRESS DETAILS =================
+        // =====================================================
+        // ADDRESS DETAILS
+        // =====================================================
 
         existingPatient.setAddress1(
                 patient.getAddress1()
@@ -234,7 +252,9 @@ public class PatientServiceImpl implements PatientService {
                 patient.getPincode()
         );
 
-        // ================= MEDICAL DETAILS =================
+        // =====================================================
+        // MEDICAL DETAILS
+        // =====================================================
 
         existingPatient.setMedicalHistory(
                 patient.getMedicalHistory()
@@ -248,7 +268,9 @@ public class PatientServiceImpl implements PatientService {
                 patient.getAllergies()
         );
 
-        // ================= INSURANCE DETAILS =================
+        // =====================================================
+        // INSURANCE DETAILS
+        // =====================================================
 
         existingPatient.setInsuranceProvider(
                 patient.getInsuranceProvider()
@@ -262,14 +284,17 @@ public class PatientServiceImpl implements PatientService {
                 patient.getPolicyHolderName()
         );
 
-        // ================= STATUS =================
+        // =====================================================
+        // STATUS
+        // =====================================================
 
         existingPatient.setStatus(
                 PatientStatus.APPROVED
         );
 
         // IMPORTANT:
-        // Keep existing company.
+        // Keep patient inside logged-in company.
+        // Never take company from frontend.
         existingPatient.setCompany(company);
 
         return patientRepository.save(
@@ -307,7 +332,8 @@ public class PatientServiceImpl implements PatientService {
 
         Company company = getLoggedInCompany();
 
-        // Automatically assign logged-in user's company
+        // IMPORTANT:
+        // Automatically assign logged-in company.
         patient.setCompany(company);
 
         if (patient.getId() == null) {
@@ -317,7 +343,9 @@ public class PatientServiceImpl implements PatientService {
             );
         }
 
-        patient.setStatus(PatientStatus.DRAFT);
+        patient.setStatus(
+                PatientStatus.DRAFT
+        );
 
         return patientRepository.save(patient);
     }
@@ -357,11 +385,21 @@ public class PatientServiceImpl implements PatientService {
                                 )
                         );
 
+        // Only DRAFT can be approved
+        if (patient.getStatus() != PatientStatus.DRAFT) {
+
+            throw new RuntimeException(
+                    "Only draft patients can be approved"
+            );
+        }
+
         patient.setStatus(
                 PatientStatus.APPROVED
         );
 
-        return patientRepository.save(patient);
+        return patientRepository.save(
+                patient
+        );
     }
 
     // =========================================================

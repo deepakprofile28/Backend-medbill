@@ -18,7 +18,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Component
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
+public class JwtAuthenticationFilter
+        extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
@@ -38,14 +39,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
 
-        // ==========================================
+        // =====================================================
         // GET AUTHORIZATION HEADER
-        // ==========================================
+        // =====================================================
 
-        final String authHeader =
+        String authHeader =
                 request.getHeader("Authorization");
 
-        // No Authorization header
+        // No token
         if (authHeader == null ||
                 !authHeader.startsWith("Bearer ")) {
 
@@ -53,80 +54,138 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // ==========================================
-        // EXTRACT JWT TOKEN
-        // ==========================================
+        // =====================================================
+        // GET TOKEN
+        // =====================================================
 
-        final String token =
-                authHeader.substring(7);
+        String token =
+                authHeader.substring(7).trim();
+
+        if (token.isEmpty()) {
+
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         try {
 
-            // ==========================================
-            // EXTRACT EMAIL FROM TOKEN
-            // ==========================================
+            // =================================================
+            // EXTRACT EMAIL
+            // =================================================
 
             String email =
                     jwtService.extractEmail(token);
 
-            // ==========================================
-            // CHECK USER NOT ALREADY AUTHENTICATED
-            // ==========================================
+            // =================================================
+            // EXTRACT COMPANY ID
+            // =================================================
+
+            Long companyId =
+                    jwtService.extractCompanyId(token);
+
+            System.out.println(
+                    "JWT Email      : " + email
+            );
+
+            System.out.println(
+                    "JWT Company ID : " + companyId
+            );
+
+            // =================================================
+            // CHECK AUTHENTICATION
+            // =================================================
 
             if (email != null &&
+                    companyId != null &&
                     SecurityContextHolder
                             .getContext()
                             .getAuthentication() == null) {
 
-                // ==========================================
-                // FIND USER FROM DATABASE
-                // ==========================================
+                // =================================================
+                // FIND USER
+                // =================================================
 
                 User user =
                         userRepository
                                 .findByEmail(email)
                                 .orElse(null);
 
-                // ==========================================
-                // VALIDATE TOKEN
-                // ==========================================
+                // =================================================
+                // VALIDATE USER
+                // =================================================
 
                 if (user != null &&
-                        jwtService.isTokenValid(token, user)) {
+                        user.getCompany() != null &&
+                        user.getCompany().getId() != null &&
+                        user.getCompany()
+                                .getId()
+                                .equals(companyId) &&
+                        Boolean.TRUE.equals(
+                                user.getActive()
+                        ) &&
+                        jwtService.isTokenValid(
+                                token,
+                                user
+                        )) {
 
-                    // ==========================================
-                    // CREATE AUTHENTICATION
-                    // ==========================================
+                    System.out.println(
+                            "User Company ID: "
+                                    + user.getCompany().getId()
+                    );
+
+                    System.out.println(
+                            "Tenant validation successful"
+                    );
+
+                    // =================================================
+                    // USER DETAILS
+                    // =================================================
 
                     UserDetails userDetails =
                             org.springframework.security.core.userdetails.User
-                                    .withUsername(user.getEmail())
-                                    .password(user.getPassword())
+                                    .withUsername(
+                                            user.getEmail()
+                                    )
+                                    .password(
+                                            user.getPassword()
+                                    )
                                     .authorities(
                                             user.getRole()
                                     )
                                     .build();
 
-                    UsernamePasswordAuthenticationToken
-                            authentication =
-                                new UsernamePasswordAuthenticationToken(
+                    // =================================================
+                    // AUTHENTICATION
+                    // =================================================
+
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
                                     userDetails,
                                     null,
                                     userDetails.getAuthorities()
-                                );
+                            );
 
                     authentication.setDetails(
                             new WebAuthenticationDetailsSource()
                                     .buildDetails(request)
                     );
 
-                    // ==========================================
+                    // =================================================
                     // SET SECURITY CONTEXT
-                    // ==========================================
+                    // =================================================
 
                     SecurityContextHolder
                             .getContext()
-                            .setAuthentication(authentication);
+                            .setAuthentication(
+                                    authentication
+                            );
+
+                } else {
+
+                    System.out.println(
+                            "JWT validation failed: "
+                                    + "User / Company / Token mismatch"
+                    );
                 }
             }
 
@@ -136,11 +195,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     "JWT Authentication failed: "
                             + e.getMessage()
             );
+
+            // Don't stop request here.
+            // Spring Security will decide whether
+            // authentication is required.
         }
 
-        // ==========================================
+        // =====================================================
         // CONTINUE REQUEST
-        // ==========================================
+        // =====================================================
 
         filterChain.doFilter(request, response);
     }

@@ -16,6 +16,12 @@ public class RegisterRequest {
 
     private Long companyId;
 
+    // ================= PHONE =================
+
+    private String countryCode;
+
+    private String mobile;
+
     // ================= GETTERS =================
 
     public String getName() {
@@ -42,6 +48,14 @@ public class RegisterRequest {
         return companyId;
     }
 
+    public String getCountryCode() {
+        return countryCode;
+    }
+
+    public String getMobile() {
+        return mobile;
+    }
+
     // ================= SETTERS =================
 
     public void setName(String name) {
@@ -66,5 +80,13 @@ public class RegisterRequest {
 
     public void setCompanyId(Long companyId) {
         this.companyId = companyId;
+    }
+
+    public void setCountryCode(String countryCode) {
+        this.countryCode = countryCode;
+    }
+
+    public void setMobile(String mobile) {
+        this.mobile = mobile;
     }
 }

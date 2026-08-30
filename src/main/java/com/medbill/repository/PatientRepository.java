@@ -1,9 +1,10 @@
 package com.medbill.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.Optional;
+
 import com.medbill.entity.Company;
 import com.medbill.entity.Patient;
 import com.medbill.entity.PatientStatus;
@@ -28,13 +29,11 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     // STATUS - COMPANY WISE
     // =====================================================
 
-    // Get approved patients for a particular company
     List<Patient> findByCompanyAndStatus(
             Company company,
             PatientStatus status
     );
 
-    // Get patients by status ordered by latest created date
     List<Patient> findByCompanyAndStatusOrderByCreatedDateDesc(
             Company company,
             PatientStatus status
@@ -54,5 +53,15 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
             Long id,
             Company company
     );
-    }
 
+    // =====================================================
+    // COUNT - COMPANY WISE
+    // =====================================================
+
+    long countByCompany(Company company);
+
+    long countByCompanyAndStatus(
+            Company company,
+            PatientStatus status
+    );
+}

@@ -2,8 +2,17 @@ package com.medbill.dto;
 
 public class LoginRequest {
 
+    private String storeName;
     private String email;
     private String password;
+
+    public String getStoreName() {
+        return storeName;
+    }
+
+    public void setStoreName(String storeName) {
+        this.storeName = storeName;
+    }
 
     public String getEmail() {
         return email;

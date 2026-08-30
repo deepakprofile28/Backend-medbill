@@ -10,23 +10,30 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+
 @Entity
 @Table(name = "patients")
 public class Patient {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-        private Long id;
-    
-    @ManyToOne
-    @JoinColumn(name = "company_id")
+    private Long id;
+
+    // =========================================================
+    // COMPANY / TENANT
+    // =========================================================
+
+    @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY, optional = false)
+    @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
-    // ================= PERSONAL DETAILS =================
+    // =========================================================
+    // PERSONAL DETAILS
+    // =========================================================
 
     private String name;
 
@@ -52,7 +59,9 @@ public class Patient {
 
     private String emergencyName;
 
-    // ================= ADDRESS DETAILS =================
+    // =========================================================
+    // ADDRESS DETAILS
+    // =========================================================
 
     private String address1;
 
@@ -68,7 +77,9 @@ public class Patient {
 
     private String pincode;
 
-    // ================= MEDICAL DETAILS =================
+    // =========================================================
+    // MEDICAL DETAILS
+    // =========================================================
 
     @Column(columnDefinition = "TEXT")
     private String medicalHistory;
@@ -79,7 +90,9 @@ public class Patient {
     @Column(columnDefinition = "TEXT")
     private String allergies;
 
-    // ================= INSURANCE DETAILS =================
+    // =========================================================
+    // INSURANCE DETAILS
+    // =========================================================
 
     private String insuranceProvider;
 
@@ -87,14 +100,18 @@ public class Patient {
 
     private String policyHolderName;
 
-    // ================= STATUS =================
+    // =========================================================
+    // STATUS
+    // =========================================================
 
     @Enumerated(EnumType.STRING)
     private PatientStatus status;
 
     private LocalDateTime createdDate;
 
-    // ================= DEFAULT STATUS & DATE =================
+    // =========================================================
+    // DEFAULT STATUS & DATE
+    // =========================================================
 
     @PrePersist
     protected void onCreate() {
@@ -108,7 +125,9 @@ public class Patient {
         }
     }
 
-    // ================= GETTERS & SETTERS =================
+    // =========================================================
+    // ID
+    // =========================================================
 
     public Long getId() {
         return id;
@@ -117,6 +136,22 @@ public class Patient {
     public void setId(Long id) {
         this.id = id;
     }
+
+    // =========================================================
+    // COMPANY / TENANT
+    // =========================================================
+
+    public Company getCompany() {
+        return company;
+    }
+
+    public void setCompany(Company company) {
+        this.company = company;
+    }
+
+    // =========================================================
+    // PERSONAL DETAILS
+    // =========================================================
 
     public String getName() {
         return name;
@@ -142,7 +177,9 @@ public class Patient {
         this.email = email;
     }
 
-    // ================= DOB =================
+    // =========================================================
+    // DOB
+    // =========================================================
 
     public LocalDate getDob() {
         return dob;
@@ -152,7 +189,9 @@ public class Patient {
         this.dob = dob;
     }
 
-    // ================= OTHER PERSONAL DETAILS =================
+    // =========================================================
+    // OTHER PERSONAL DETAILS
+    // =========================================================
 
     public String getGender() {
         return gender;
@@ -218,7 +257,9 @@ public class Patient {
         this.emergencyName = emergencyName;
     }
 
-    // ================= ADDRESS DETAILS =================
+    // =========================================================
+    // ADDRESS DETAILS
+    // =========================================================
 
     public String getAddress1() {
         return address1;
@@ -276,7 +317,9 @@ public class Patient {
         this.pincode = pincode;
     }
 
-    // ================= MEDICAL DETAILS =================
+    // =========================================================
+    // MEDICAL DETAILS
+    // =========================================================
 
     public String getMedicalHistory() {
         return medicalHistory;
@@ -302,7 +345,9 @@ public class Patient {
         this.allergies = allergies;
     }
 
-    // ================= INSURANCE DETAILS =================
+    // =========================================================
+    // INSURANCE DETAILS
+    // =========================================================
 
     public String getInsuranceProvider() {
         return insuranceProvider;
@@ -328,7 +373,9 @@ public class Patient {
         this.policyHolderName = policyHolderName;
     }
 
-    // ================= STATUS =================
+    // =========================================================
+    // STATUS
+    // =========================================================
 
     public PatientStatus getStatus() {
         return status;
@@ -338,7 +385,9 @@ public class Patient {
         this.status = status;
     }
 
-    // ================= CREATED DATE =================
+    // =========================================================
+    // CREATED DATE
+    // =========================================================
 
     public LocalDateTime getCreatedDate() {
         return createdDate;
@@ -346,13 +395,5 @@ public class Patient {
 
     public void setCreatedDate(LocalDateTime createdDate) {
         this.createdDate = createdDate;
-    }
-    
-    public Company getCompany() {
-        return company;
-    }
-
-    public void setCompany(Company company) {
-        this.company = company;
     }
 }

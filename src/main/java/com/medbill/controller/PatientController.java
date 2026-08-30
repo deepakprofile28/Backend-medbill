@@ -27,9 +27,9 @@ public class PatientController {
         this.patientService = patientService;
     }
 
-    // ==========================================
+    // =========================================================
     // GET ALL APPROVED PATIENTS
-    // ==========================================
+    // =========================================================
 
     @GetMapping
     public ResponseEntity<List<Patient>> getAllPatients() {
@@ -39,27 +39,32 @@ public class PatientController {
         );
     }
 
-    // ==========================================
+    // =========================================================
     // GET PATIENT BY ID
-    // ==========================================
+    // =========================================================
 
     @GetMapping("/{id}")
     public ResponseEntity<Patient> getPatientById(
             @PathVariable Long id) {
 
         try {
-            Patient patient = patientService.getPatientById(id);
+
+            Patient patient =
+                    patientService.getPatientById(id);
 
             return ResponseEntity.ok(patient);
 
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+
+            return ResponseEntity
+                    .notFound()
+                    .build();
         }
     }
 
-    // ==========================================
+    // =========================================================
     // SAVE APPROVED PATIENT
-    // ==========================================
+    // =========================================================
 
     @PostMapping
     public ResponseEntity<Patient> savePatient(
@@ -71,9 +76,9 @@ public class PatientController {
         return ResponseEntity.ok(savedPatient);
     }
 
-    // ==========================================
+    // =========================================================
     // SAVE DRAFT
-    // ==========================================
+    // =========================================================
 
     @PostMapping("/draft")
     public ResponseEntity<Patient> saveDraft(
@@ -85,9 +90,9 @@ public class PatientController {
         return ResponseEntity.ok(savedDraft);
     }
 
-    // ==========================================
+    // =========================================================
     // GET DRAFT PATIENTS
-    // ==========================================
+    // =========================================================
 
     @GetMapping("/drafts")
     public ResponseEntity<List<Patient>> getDraftPatients() {
@@ -97,28 +102,34 @@ public class PatientController {
         );
     }
 
-    // ==========================================
+    // =========================================================
     // APPROVE DRAFT
-    // ==========================================
+    // =========================================================
 
     @PutMapping("/{id}/approve")
     public ResponseEntity<Patient> approvePatient(
             @PathVariable Long id) {
 
         try {
+
             Patient approvedPatient =
                     patientService.approvePatient(id);
 
-            return ResponseEntity.ok(approvedPatient);
+            return ResponseEntity.ok(
+                    approvedPatient
+            );
 
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+
+            return ResponseEntity
+                    .notFound()
+                    .build();
         }
     }
 
-    // ==========================================
+    // =========================================================
     // UPDATE PATIENT
-    // ==========================================
+    // =========================================================
 
     @PutMapping("/{id}")
     public ResponseEntity<Patient> updatePatient(
@@ -126,25 +137,35 @@ public class PatientController {
             @RequestBody Patient patient) {
 
         try {
-            Patient updatedPatient =
-                    patientService.updatePatient(id, patient);
 
-            return ResponseEntity.ok(updatedPatient);
+            Patient updatedPatient =
+                    patientService.updatePatient(
+                            id,
+                            patient
+                    );
+
+            return ResponseEntity.ok(
+                    updatedPatient
+            );
 
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+
+            return ResponseEntity
+                    .notFound()
+                    .build();
         }
     }
 
-    // ==========================================
+    // =========================================================
     // DELETE PATIENT
-    // ==========================================
+    // =========================================================
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deletePatient(
             @PathVariable Long id) {
 
         try {
+
             patientService.deletePatient(id);
 
             return ResponseEntity.ok(
@@ -152,19 +173,23 @@ public class PatientController {
             );
 
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+
+            return ResponseEntity
+                    .notFound()
+                    .build();
         }
     }
 
-    // ==========================================
+    // =========================================================
     // DELETE DRAFT
-    // ==========================================
+    // =========================================================
 
     @DeleteMapping("/{id}/draft")
     public ResponseEntity<String> deleteDraft(
             @PathVariable Long id) {
 
         try {
+
             patientService.deleteDraft(id);
 
             return ResponseEntity.ok(
@@ -172,6 +197,7 @@ public class PatientController {
             );
 
         } catch (RuntimeException e) {
+
             return ResponseEntity
                     .badRequest()
                     .body(e.getMessage());
