@@ -3,6 +3,10 @@ package com.medbill.entity;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -17,6 +21,7 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "patients")
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Patient {
 
     @Id
@@ -41,6 +46,7 @@ public class Patient {
 
     private String email;
 
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dob;
 
     private String gender;
@@ -107,6 +113,7 @@ public class Patient {
     @Enumerated(EnumType.STRING)
     private PatientStatus status;
 
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private LocalDateTime createdDate;
 
     // =========================================================

@@ -1,6 +1,9 @@
 package com.medbill.controller;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,7 +13,11 @@ import java.util.Random;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -115,10 +122,11 @@ public class AuthController {
             companyToSave.setOtpVerified(false);
 
             // SAVE TO MYSQL companies TABLE
+            companyToSave.setStatus("PENDING_VERIFICATION");
             Company savedCompany = companyRepository.save(companyToSave);
             System.out.println("Company saved in MySQL companies table with ID: " + savedCompany.getId());
 
-            // CREATE OR UPDATE ADMIN USER IN users TABLE
+            // CREATE OR UPDATE ADMIN USER IN users TABLE (INACTIVE UNTIL OTP IS VERIFIED)
             Optional<User> existingUser = userRepository.findByEmail(email);
             User adminUser;
             if (existingUser.isPresent()) {
@@ -126,18 +134,18 @@ public class AuthController {
                 adminUser.setName(request.getEffectiveOwnerName());
                 adminUser.setPassword(passwordEncoder.encode(rawPassword));
                 adminUser.setCompany(savedCompany);
-                adminUser.setActive(true);
+                adminUser.setActive(false);
             } else {
                 adminUser = new User();
                 adminUser.setName(request.getEffectiveOwnerName());
                 adminUser.setEmail(email);
                 adminUser.setPassword(passwordEncoder.encode(rawPassword));
                 adminUser.setRole("ADMIN");
-                adminUser.setActive(true);
+                adminUser.setActive(false);
                 adminUser.setCompany(savedCompany);
             }
             userRepository.save(adminUser);
-            System.out.println("Admin user saved in MySQL users table: " + adminUser.getEmail());
+            System.out.println("Admin user saved in MySQL users table (Pending OTP verification): " + adminUser.getEmail());
 
             // Send OTP Email via Gmail SMTP Asynchronously
             emailService.sendOtpEmail(email, request.getEffectiveOwnerName(), otp);
@@ -317,18 +325,25 @@ public class AuthController {
             String enteredOtp = request.getOtp().trim();
             String countryCode = request.getCountryCode() != null ? request.getCountryCode().trim() : "+91";
             String mobile = request.getMobile() != null ? request.getMobile().replaceAll("\\D", "") : "";
+            String email = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
 
-            System.out.println("Verifying OTP for countryCode: " + countryCode + ", mobile: " + mobile + ", OTP: " + enteredOtp);
+            System.out.println("Verifying OTP for countryCode: " + countryCode + ", mobile: " + mobile + ", email: " + email + ", OTP: " + enteredOtp);
 
-            // Find latest Company by countryCode and mobile, or by mobile only
-            Optional<Company> companyOpt = companyRepository.findTopByCountryCodeAndMobileOrderByIdDesc(countryCode, mobile);
-            if (companyOpt.isEmpty() && !mobile.isEmpty()) {
-                companyOpt = companyRepository.findTopByMobileOrderByIdDesc(mobile);
+            // Find Company by countryCode and mobile, or by mobile, or by email
+            Optional<Company> companyOpt = Optional.empty();
+            if (!mobile.isEmpty()) {
+                companyOpt = companyRepository.findTopByCountryCodeAndMobileOrderByIdDesc(countryCode, mobile);
+                if (companyOpt.isEmpty()) {
+                    companyOpt = companyRepository.findTopByMobileOrderByIdDesc(mobile);
+                }
+            }
+            if (companyOpt.isEmpty() && !email.isEmpty()) {
+                companyOpt = companyRepository.findByEmail(email);
             }
 
             if (companyOpt.isEmpty()) {
-                System.out.println("Company not found for mobile: " + mobile);
-                return ResponseEntity.badRequest().body(Map.of("message", "Company record not found for this mobile number."));
+                System.out.println("Company not found for mobile: " + mobile + " / email: " + email);
+                return ResponseEntity.badRequest().body(Map.of("message", "Company record not found for this account."));
             }
 
             Company company = companyOpt.get();
@@ -345,17 +360,36 @@ public class AuthController {
                 return ResponseEntity.badRequest().body(Map.of("message", "OTP has expired. Please request a new code."));
             }
 
-            // Mark Verified and clear OTP
+            // Mark Verified and clear OTP in MySQL companies table
             company.setOtpVerified(true);
+            company.setStatus("ACTIVE");
             company.setOtp(null);
             company.setOtpExpiry(null);
             companyRepository.save(company);
 
-            System.out.println("OTP verified successfully in MySQL for Company ID: " + company.getId());
+            // Activate associated users in MySQL users table so they can now login!
+            List<User> companyUsers = userRepository.findByCompanyId(company.getId());
+            for (User u : companyUsers) {
+                u.setActive(true);
+                userRepository.save(u);
+                System.out.println("User account activated in MySQL: " + u.getEmail());
+            }
+
+            if (company.getEmail() != null && !company.getEmail().isEmpty()) {
+                Optional<User> adminOpt = userRepository.findByEmail(company.getEmail().trim().toLowerCase());
+                if (adminOpt.isPresent()) {
+                    User admin = adminOpt.get();
+                    admin.setActive(true);
+                    userRepository.save(admin);
+                    System.out.println("Admin account activated in MySQL: " + admin.getEmail());
+                }
+            }
+
+            System.out.println("OTP verified & Company/User accounts activated in MySQL for Company ID: " + company.getId());
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "message", "OTP verified successfully!",
+                    "message", "OTP verified successfully! You can now sign in.",
                     "companyId", company.getId()
             ));
 
@@ -456,31 +490,65 @@ public class AuthController {
 
         User user = userOpt.get();
 
-        if (!Boolean.TRUE.equals(user.getActive())) {
-            return ResponseEntity.badRequest().body(Map.of("message", "User account is inactive"));
-        }
-
+        // 1. Password Verification
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             return ResponseEntity.badRequest().body(Map.of("message", "Invalid Email or Password"));
         }
 
-        // Validate Store / Pharmacy Name if provided
+        // 2. CHECK OTP VERIFICATION STATUS (BLOCK LOGIN IF NOT VERIFIED)
+        Company company = user.getCompany();
+        if (company != null && Boolean.FALSE.equals(company.getOtpVerified())) {
+            System.out.println("Login blocked: OTP not verified for Company: " + company.getName() + " (" + user.getEmail() + ")");
+            return ResponseEntity.badRequest().body(Map.of(
+                "message", "Your account is not verified yet! Please complete OTP verification to log in.",
+                "notVerified", true,
+                "email", user.getEmail(),
+                "mobile", company.getMobile() != null ? company.getMobile() : "",
+                "countryCode", company.getCountryCode() != null ? company.getCountryCode() : "+91",
+                "companyName", company.getName() != null ? company.getName() : ""
+            ));
+        }
+
+        if (!Boolean.TRUE.equals(user.getActive())) {
+            System.out.println("Login blocked: User account inactive / unverified: " + user.getEmail());
+            return ResponseEntity.badRequest().body(Map.of(
+                "message", "Your account is not verified yet! Please complete OTP verification to log in.",
+                "notVerified", true,
+                "email", user.getEmail()
+            ));
+        }
+
+        boolean isSuperAdmin = "admin@gmail.com".equalsIgnoreCase(email) || "SUPER_ADMIN".equalsIgnoreCase(user.getRole());
+
+        // Validate Store / Pharmacy Name if provided (Bypass for Super Admin admin@gmail.com)
         if (request.getStoreName() != null && !request.getStoreName().trim().isEmpty()) {
             String enteredStore = request.getStoreName().trim();
-            Company comp = user.getCompany();
-            if (comp != null && comp.getName() != null) {
-                String existingStore = comp.getName().trim();
-                boolean matches = existingStore.equalsIgnoreCase(enteredStore) 
-                        || existingStore.toLowerCase().contains(enteredStore.toLowerCase())
-                        || enteredStore.toLowerCase().contains(existingStore.toLowerCase());
-                if (!matches) {
-                    return ResponseEntity.badRequest().body(Map.of("message", "Invalid Store Name: '" + enteredStore + "' does not match your registered store ('" + existingStore + "')"));
+            if (isSuperAdmin) {
+                // If Super Admin enters a store name, switch context to that store
+                var allComps = companyRepository.findAll();
+                for (Company c : allComps) {
+                    if (c.getName() != null && (c.getName().equalsIgnoreCase(enteredStore) 
+                            || c.getName().toLowerCase().contains(enteredStore.toLowerCase())
+                            || enteredStore.toLowerCase().contains(c.getName().toLowerCase()))) {
+                        company = c;
+                        break;
+                    }
+                }
+            } else {
+                Company comp = user.getCompany();
+                if (comp != null && comp.getName() != null) {
+                    String existingStore = comp.getName().trim();
+                    boolean matches = existingStore.equalsIgnoreCase(enteredStore) 
+                            || existingStore.toLowerCase().contains(enteredStore.toLowerCase())
+                            || enteredStore.toLowerCase().contains(existingStore.toLowerCase());
+                    if (!matches) {
+                        return ResponseEntity.badRequest().body(Map.of("message", "Invalid Store Name: '" + enteredStore + "' does not match your registered store ('" + existingStore + "')"));
+                    }
                 }
             }
         }
 
         String token = jwtService.generateToken(user);
-        Company company = user.getCompany();
 
         LoginResponse response = LoginResponse.builder()
                 .userName(user.getName())
@@ -491,5 +559,158 @@ public class AuthController {
                 .build();
 
         return ResponseEntity.ok(response);
+    }
+
+    // =====================================================
+    // 5. GET ALL USERS (FOR USER MANAGEMENT /users)
+    // GET /api/auth/users
+    // =====================================================
+    @GetMapping("/users")
+    public ResponseEntity<?> getAllUsers() {
+        System.out.println("=================================");
+        System.out.println("GET ALL USERS API CALLED");
+
+        List<User> users = userRepository.findAll();
+        List<Map<String, Object>> responseList = new ArrayList<>();
+
+        for (User u : users) {
+            String uEmail = u.getEmail() != null ? u.getEmail().trim().toLowerCase() : "";
+            String role = u.getRole() != null ? u.getRole().trim().toUpperCase() : "";
+
+            // HIDE ONLY SUPER ADMIN (admin@gmail.com) FROM USER MANAGEMENT LIST
+            if ("admin@gmail.com".equalsIgnoreCase(uEmail) 
+                    || "SUPER_ADMIN".equalsIgnoreCase(role) 
+                    || "SUPERADMIN".equalsIgnoreCase(role)) {
+                continue;
+            }
+
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", u.getId());
+            map.put("name", u.getName());
+            map.put("userName", u.getName());
+            map.put("email", u.getEmail());
+            map.put("role", u.getRole() != null ? u.getRole() : "ADMIN");
+            map.put("active", u.getActive());
+            map.put("status", Boolean.TRUE.equals(u.getActive()) ? "Active" : "Inactive");
+            if (u.getCompany() != null) {
+                map.put("companyId", u.getCompany().getId());
+                map.put("companyName", u.getCompany().getName());
+                map.put("mobile", u.getCompany().getMobile());
+                map.put("countryCode", u.getCompany().getCountryCode());
+            } else {
+                map.put("companyId", null);
+                map.put("companyName", "MediCare Hospital");
+                map.put("mobile", "");
+                map.put("countryCode", "+91");
+            }
+            responseList.add(map);
+        }
+
+        return ResponseEntity.ok(responseList);
+    }
+
+    // =====================================================
+    // 6. UPDATE USER
+    // PUT /api/auth/users/{email}
+    // =====================================================
+    @PutMapping("/users/{email}")
+    public ResponseEntity<?> updateUser(@PathVariable("email") String email, @RequestBody Map<String, Object> req) {
+        System.out.println("=================================");
+        System.out.println("UPDATE USER API CALLED FOR: " + email);
+
+        try {
+            String decodedEmail = URLDecoder.decode(email, StandardCharsets.UTF_8).trim().toLowerCase();
+            Optional<User> userOpt = userRepository.findByEmail(decodedEmail);
+
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "User not found with email: " + decodedEmail));
+            }
+
+            User user = userOpt.get();
+            if (req.containsKey("userName") || req.containsKey("name")) {
+                String name = String.valueOf(req.getOrDefault("userName", req.get("name")));
+                if (name != null && !name.trim().isEmpty()) {
+                    user.setName(name.trim());
+                }
+            }
+
+            if (req.containsKey("role")) {
+                user.setRole(String.valueOf(req.get("role")));
+            }
+
+            if (req.containsKey("active")) {
+                user.setActive(Boolean.valueOf(String.valueOf(req.get("active"))));
+            } else if (req.containsKey("status")) {
+                user.setActive("Active".equalsIgnoreCase(String.valueOf(req.get("status"))));
+            }
+
+            userRepository.save(user);
+            return ResponseEntity.ok(Map.of("success", true, "message", "User updated successfully in MySQL"));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(Map.of("message", "Failed to update user: " + e.getMessage()));
+        }
+    }
+
+    // =====================================================
+    // 7. DELETE USER
+    // DELETE /api/auth/users/{email}
+    // =====================================================
+    @DeleteMapping("/users/{email}")
+    public ResponseEntity<?> deleteUser(@PathVariable("email") String email) {
+        System.out.println("=================================");
+        System.out.println("DELETE USER API CALLED FOR: " + email);
+
+        try {
+            String decodedEmail = URLDecoder.decode(email, StandardCharsets.UTF_8).trim().toLowerCase();
+            Optional<User> userOpt = userRepository.findByEmail(decodedEmail);
+
+            if (userOpt.isPresent()) {
+                userRepository.delete(userOpt.get());
+                System.out.println("User deleted from MySQL users table: " + decodedEmail);
+                return ResponseEntity.ok(Map.of("success", true, "message", "User deleted successfully"));
+            }
+
+            return ResponseEntity.ok(Map.of("success", true, "message", "User not found or already removed"));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(Map.of("message", "Failed to delete user: " + e.getMessage()));
+        }
+    }
+
+    // =====================================================
+    // 8. RESET USER PASSWORD
+    // POST /api/auth/reset-password
+    // =====================================================
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> req) {
+        System.out.println("=================================");
+        System.out.println("RESET PASSWORD API CALLED FOR: " + req.get("email"));
+
+        try {
+            String email = req.getOrDefault("email", "").trim().toLowerCase();
+            String newPassword = req.getOrDefault("newPassword", "");
+
+            if (email.isEmpty() || newPassword.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Email and new password are required"));
+            }
+
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                user.setPassword(passwordEncoder.encode(newPassword));
+                userRepository.save(user);
+                System.out.println("Password reset in MySQL for user: " + email);
+                return ResponseEntity.ok(Map.of("success", true, "message", "Password reset successfully"));
+            }
+
+            return ResponseEntity.badRequest().body(Map.of("message", "User not found with email: " + email));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(Map.of("message", "Failed to reset password: " + e.getMessage()));
+        }
     }
 }

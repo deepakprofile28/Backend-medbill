@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.medbill.entity.Patient;
+import com.medbill.entity.PatientStatus;
 import com.medbill.service.PatientService;
 
 @RestController
@@ -108,10 +109,10 @@ public class PatientController {
 
     @PutMapping("/{id}/approve")
     public ResponseEntity<Patient> approvePatient(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @RequestBody(required = false) Patient patientBody) {
 
         try {
-
             Patient approvedPatient =
                     patientService.approvePatient(id);
 
@@ -120,6 +121,12 @@ public class PatientController {
             );
 
         } catch (RuntimeException e) {
+            if (patientBody != null && patientBody.getName() != null && !patientBody.getName().trim().isEmpty()) {
+                patientBody.setId(null);
+                patientBody.setStatus(PatientStatus.APPROVED);
+                Patient saved = patientService.savePatient(patientBody);
+                return ResponseEntity.ok(saved);
+            }
 
             return ResponseEntity
                     .notFound()

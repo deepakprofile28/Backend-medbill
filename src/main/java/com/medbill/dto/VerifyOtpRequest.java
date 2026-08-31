@@ -3,9 +3,8 @@ package com.medbill.dto;
 public class VerifyOtpRequest {
 
     private String countryCode;
-
     private String mobile;
-
+    private String email;
     private String otp;
 
     // ================= GETTERS =================
@@ -16,6 +15,10 @@ public class VerifyOtpRequest {
 
     public String getMobile() {
         return mobile;
+    }
+
+    public String getEmail() {
+        return email;
     }
 
     public String getOtp() {
@@ -30,6 +33,10 @@ public class VerifyOtpRequest {
 
     public void setMobile(String mobile) {
         this.mobile = mobile;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public void setOtp(String otp) {

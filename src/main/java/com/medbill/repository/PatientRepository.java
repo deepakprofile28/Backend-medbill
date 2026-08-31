@@ -39,6 +39,10 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
             PatientStatus status
     );
 
+    List<Patient> findByStatus(
+            PatientStatus status
+    );
+
     // =====================================================
     // ALL PATIENTS - COMPANY WISE
     // =====================================================
