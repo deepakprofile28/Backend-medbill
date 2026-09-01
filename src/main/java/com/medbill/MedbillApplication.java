@@ -39,95 +39,54 @@ public class MedbillApplication {
                             .orElse(null);
 
             if (company == null) {
-
-                System.out.println(
-                        "================================="
-                );
-
-                System.out.println(
-                        "Company ID 1 not found."
-                );
-
-                System.out.println(
-                        "Test user was NOT created."
-                );
-
-                System.out.println(
-                        "Please create Company ID 1 first."
-                );
-
-                System.out.println(
-                        "================================="
-                );
-
-                return;
+                company = new Company();
+                company.setName("Apollo Medicals");
+                company.setEmail("admin@medicalbilling.com");
+                company.setMobile("9876543210");
+                company.setCountryCode("+91");
+                company.setAddress("Chennai, Tamil Nadu");
+                company.setStatus("ACTIVE");
+                company.setOtpVerified(true);
+                company.setCreatedAt(java.time.LocalDateTime.now());
+                company = companyRepository.save(company);
+                System.out.println("Default Store Company created with ID: " + company.getId() + " (" + company.getName() + ")");
             }
 
             // =================================================
-            // CREATE TEST USER
+            // CREATE OR MIGRATE SUPER ADMIN USER (admin@gmail.com)
             // =================================================
 
-            if (userRepository
-                    .findByEmail("admin@gmail.com")
-                    .isEmpty()) {
-
+            var adminOpt = userRepository.findByEmail("admin@gmail.com");
+            if (adminOpt.isEmpty()) {
                 User user = new User();
-
                 user.setName("Admin");
-
                 user.setEmail("admin@gmail.com");
-
-                user.setPassword(
-                        passwordEncoder.encode(
-                                "admin123"
-                        )
-                );
-
-                user.setRole("ADMIN");
-
+                user.setPassword(passwordEncoder.encode("admin123"));
+                user.setRole("SUPER_ADMIN");
                 user.setActive(true);
-
-                // IMPORTANT
-                // Assign company
                 user.setCompany(company);
 
                 userRepository.save(user);
 
-                System.out.println(
-                        "================================="
-                );
-
-                System.out.println(
-                        "Test user created successfully!"
-                );
-
-                System.out.println(
-                        "Email      : admin@gmail.com"
-                );
-
-                System.out.println(
-                        "Password   : admin123"
-                );
-
-                System.out.println(
-                        "Company ID : "
-                                + company.getId()
-                );
-
-                System.out.println(
-                        "Company    : "
-                                + company.getName()
-                );
-
-                System.out.println(
-                        "================================="
-                );
-
+                System.out.println("=================================");
+                System.out.println("Super Admin created successfully!");
+                System.out.println("Email      : admin@gmail.com");
+                System.out.println("Role       : SUPER_ADMIN");
+                System.out.println("=================================");
             } else {
-
-                System.out.println(
-                        "Test user already exists."
-                );
+                User existingUser = adminOpt.get();
+                if (!"SUPER_ADMIN".equalsIgnoreCase(existingUser.getRole())) {
+                    existingUser.setRole("SUPER_ADMIN");
+                    if (existingUser.getCompany() == null && company != null) {
+                        existingUser.setCompany(company);
+                    }
+                    userRepository.save(existingUser);
+                    System.out.println("=================================");
+                    System.out.println("Migrated admin@gmail.com to SUPER_ADMIN successfully!");
+                    System.out.println("=================================");
+                } else {
+                    System.out.println("Super Admin user admin@gmail.com verified (SUPER_ADMIN).");
+                }
             }
         };
     }
