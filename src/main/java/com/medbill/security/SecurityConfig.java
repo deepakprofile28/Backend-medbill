@@ -115,11 +115,23 @@ public class SecurityConfig {
                     "/**"
                 ).permitAll()
 
-                // Public Auth, Company, and Patient APIs
+                // Public Auth, Company, Patient, Medicine, and AI APIs
                 .requestMatchers(
                     "/api/auth/**",
                     "/api/companies/**",
-                    "/api/patients/**"
+                    "/api/patients/**",
+                    "/api/medicines/**",
+                    "/api/ai/**",
+                    "/api/store-config/**",
+                    "/api/taxes/**",
+                    "/api/categories/**",
+                    "/api/roles/**",
+                    "/api/access/**",
+                    "/api/doctors/**",
+                    "/api/warehouses/**",
+                    "/api/brands/**",
+                    "/api/branches/**",
+                    "/api/sales/**"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
