@@ -131,7 +131,11 @@ public class SecurityConfig {
                     "/api/warehouses/**",
                     "/api/brands/**",
                     "/api/branches/**",
-                    "/api/sales/**"
+                    "/api/sales/**",
+                    "/api/suppliers/**",
+                    "/api/purchases/**",
+                    "/api/purchase-returns/**",
+                    "/api/racks/**"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
